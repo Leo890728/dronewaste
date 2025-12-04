@@ -64,3 +64,6 @@ Follow the [evaluation instructions](docs/eval.md) to evaluate a model on the Dr
     year={2025}
 }
 ``` -->
+
+## Acknowledgements
+This work was funded by the European Union’s Horizon Europe project PERIVALLON – Protecting the EuRopean terrItory from organised enVironmentAl crime through inteLLigent threat detectiON tools, under grant agreement no. 101073952.
