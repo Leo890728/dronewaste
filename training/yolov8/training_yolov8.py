@@ -257,6 +257,8 @@ def initialize_project(project_name):
     print(f'[{RUN}] initializing project "{project_name}" ...')
     print()
 
+    os.makedirs(wandb_project, exist_ok=True)
+
     # save kfold parameters
     with open(os.path.join(wandb_project, f"{project_name}_params.yaml"), "w") as f:
         yaml.safe_dump(
