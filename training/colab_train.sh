@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Colab-friendly defaults. Override any of these before calling the script:
-#   ARCH=yolov12 MODEL=yolov12n EPOCHS=50 BATCH_SIZE=16 SITE_INDICES=0,1 bash training/colab_train.sh
+#   ARCH=yolov12 MODEL=yolov12n EPOCHS=50 BATCH_SIZE=4 SITE_INDICES=0,1 bash training/colab_train.sh
 ARCH="${ARCH:-yolov8}"
 MODEL="${MODEL:-}"
 SLUG="${SLUG:-colab}"
@@ -14,13 +14,17 @@ SITE_INDICES="${SITE_INDICES:-0}"
 IMG_SIZE="${IMG_SIZE:-640}"
 EPOCHS="${EPOCHS:-10}"
 PATIENCE="${PATIENCE:-5}"
-BATCH_SIZE="${BATCH_SIZE:-16}"
+BATCH_SIZE="${BATCH_SIZE:-4}"
+YOLO_WORKERS="${YOLO_WORKERS:-2}"
+YOLO_CACHE="${YOLO_CACHE:-False}"
+YOLO_DETERMINISTIC="${YOLO_DETERMINISTIC:-0}"
 YOLO_DEVICE="${YOLO_DEVICE:-0}"
 FASTER_GPUS="${FASTER_GPUS:-1}"
 FASTER_BATCH_SIZE="${FASTER_BATCH_SIZE:-2}"
 AUTO_INSTALL="${AUTO_INSTALL:-1}"
 AUTO_DOWNLOAD="${AUTO_DOWNLOAD:-1}"
 WANDB_MODE="${WANDB_MODE:-offline}"
+CUDA_LAUNCH_BLOCKING="${CUDA_LAUNCH_BLOCKING:-0}"
 
 STORAGE="${STORAGE:-/content}"
 DATASET_DIR="${DATASET_DIR:-$STORAGE/dronewaste}"
@@ -34,7 +38,7 @@ DATASET_JSON="dronewaste_v1.0.json"
 INFO_FILE="info.txt"
 IMAGES_ARCHIVE="images.tar.gz"
 
-export WANDB_MODE
+export WANDB_MODE CUDA_LAUNCH_BLOCKING YOLO_DETERMINISTIC
 
 case "$ARCH" in
     yolov8)
@@ -175,6 +179,9 @@ echo "Model: $MODEL"
 echo "Sites: $SITE_INDICES"
 echo "Epochs: $EPOCHS"
 echo "Batch size: $BATCH_SIZE"
+echo "YOLO workers: $YOLO_WORKERS"
+echo "YOLO cache: $YOLO_CACHE"
+echo "YOLO deterministic: $YOLO_DETERMINISTIC"
 echo "Dataset: $DATASET_DIR/$DATASET_JSON"
 echo "Results: $RESULTS_ROOT/$RUN_ID"
 echo "W&B mode: $WANDB_MODE"
@@ -203,6 +210,8 @@ for SITE_INDEX in "${SITE_ARRAY[@]}"; do
         --epochs "$EPOCHS" \
         --patience "$PATIENCE" \
         --yolo_batch_size "$BATCH_SIZE" \
+        --yolo_workers "$YOLO_WORKERS" \
+        --yolo_cache "$YOLO_CACHE" \
         --yolo_device "$YOLO_DEVICE" \
         --faster_batch_size "$FASTER_BATCH_SIZE" \
         --faster_gpus "$FASTER_GPUS" \

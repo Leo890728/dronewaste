@@ -12,6 +12,13 @@ def env_int(name, default):
     return int(os.environ.get(name, default))
 
 
+def env_bool(name, default):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.lower() in ('1', 'true', 'yes', 'on')
+
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--arch', type=str, required=True)
 parser.add_argument('--site_index', type=int, required=True)
@@ -26,6 +33,9 @@ parser.add_argument('--epochs', type=int, default=env_int('EPOCHS', 300))
 parser.add_argument('--patience', type=int, default=env_int('PATIENCE', 50))
 parser.add_argument('--yolo_batch_size', type=int, default=env_int('YOLO_BATCH_SIZE', 256))
 parser.add_argument('--yolo_device', type=str, default=os.environ.get('YOLO_DEVICE', '0,1'))
+parser.add_argument('--yolo_workers', type=int, default=env_int('YOLO_WORKERS', 8))
+parser.add_argument('--yolo_cache', type=str, default=os.environ.get('YOLO_CACHE', 'disk'))
+parser.add_argument('--yolo_deterministic', action=argparse.BooleanOptionalAction, default=env_bool('YOLO_DETERMINISTIC', True))
 parser.add_argument('--faster_batch_size', type=int, default=env_int('FASTER_BATCH_SIZE', 64))
 parser.add_argument('--faster_gpus', type=int, default=env_int('FASTER_GPUS', 2))
 args = parser.parse_args()
@@ -76,8 +86,12 @@ def train_and_inference_yolov8():
         ('--epochs', str(args.epochs)),
         ('--patience', str(args.patience)),
         ('--device', args.yolo_device),
+        ('--workers', str(args.yolo_workers)),
+        ('--cache', args.yolo_cache),
         ('--fold_id', args.run_id),
     ]
+    if not args.yolo_deterministic:
+        arguments.append(('--no-deterministic',))
     # flatten list of tuples
     arguments = list(chain.from_iterable(arguments))
 
@@ -98,8 +112,12 @@ def train_and_inference_yolov12():
         ('--epochs', str(args.epochs)),
         ('--patience', str(args.patience)),
         ('--device', args.yolo_device),
+        ('--workers', str(args.yolo_workers)),
+        ('--cache', args.yolo_cache),
         ('--fold_id', args.run_id),
     ]
+    if not args.yolo_deterministic:
+        arguments.append(('--no-deterministic',))
     # flatten list of tuples
     arguments = list(chain.from_iterable(arguments))
 

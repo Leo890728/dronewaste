@@ -25,6 +25,9 @@ parser.add_argument("--lr_tl", type=float, default=0.001)  # 1e-3
 parser.add_argument("--lr_ft", type=float, default=0.0001)  # 1e-4
 parser.add_argument("--device", type=str, required=True)
 parser.add_argument("--fold_id", type=str, default=None)
+parser.add_argument("--workers", type=int, default=8)
+parser.add_argument("--cache", type=str, default="disk")
+parser.add_argument("--deterministic", action=argparse.BooleanOptionalAction, default=True)
 args = parser.parse_args()
 
 # CLI arguments
@@ -38,14 +41,25 @@ PATIENCE = args.patience
 LR_TL = args.lr_tl
 LR_FT = args.lr_ft
 DEVICE = args.device
+WORKERS = args.workers
+DETERMINISTIC = args.deterministic
 RUN = datetime.now().strftime("%Y-%m-%d_%H-%M")  # get current timestamp
+
+
+def parse_cache(value):
+    value = value.strip()
+    if value.lower() in ("false", "0", "no", "off", "none"):
+        return False
+    if value.lower() in ("true", "1", "yes", "on"):
+        return True
+    return value
 
 
 # training parameters
 optimizer = "AdamW"
 frozen_layers_tl = 10  # freeze backbone layers
 frozen_layers_ft = 2  # freeze backbone layers during fine tuning
-train_cache = 'disk'  # disk cache required for deterministic training
+train_cache = parse_cache(args.cache)  # disk cache required for deterministic training
 val_during_train = True  # enable validation during training
 train_save_plots = True  # save plots of training and validation metrics
 
@@ -69,7 +83,7 @@ hsv_s=0
 hsv_v=0
 
 
-def set_deterministic(seed=1337):
+def set_deterministic(seed=1337, deterministic=True):
     # Python random module
     random.seed(seed)
 
@@ -82,8 +96,8 @@ def set_deterministic(seed=1337):
     torch.cuda.manual_seed_all(seed)  # For multi-GPU
 
     # Additional PyTorch deterministic settings
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = deterministic
+    torch.backends.cudnn.benchmark = not deterministic
 
 
 def initialize_wandb():
@@ -98,6 +112,44 @@ def initialize_wandb():
         os.environ["WANDB_MODE"] = mode
 
     wandb.init(mode=mode, project=wandb_project)
+
+
+def run_dir_candidates(run_name):
+    project_leaf = os.path.basename(os.path.normpath(wandb_project))
+    candidates = [
+        os.path.join(wandb_project, run_name),
+        os.path.join("runs", "detect", wandb_project, run_name),
+        os.path.join("runs", "detect", project_leaf, run_name),
+    ]
+    return list(dict.fromkeys(candidates))
+
+
+def resolve_run_dir(run_name):
+    candidates = run_dir_candidates(run_name)
+    for candidate in candidates:
+        if os.path.isdir(candidate):
+            return candidate
+    raise FileNotFoundError(
+        f"Could not find Ultralytics run folder for {run_name}. "
+        f"Checked: {', '.join(candidates)}"
+    )
+
+
+def resolve_best_weights(run_name):
+    candidates = [
+        os.path.join(run_dir, "weights", "best.pt")
+        for run_dir in run_dir_candidates(run_name)
+    ]
+    for candidate in candidates:
+        if os.path.isfile(candidate):
+            return candidate
+    raise FileNotFoundError(
+        f"Could not find best.pt for {run_name}. Checked: {', '.join(candidates)}"
+    )
+
+
+def move_run_artifacts(run_name, dst):
+    shutil.move(src=resolve_run_dir(run_name), dst=dst)
 
 
 def transfer_learning():
@@ -120,7 +172,8 @@ def transfer_learning():
         optimizer=optimizer,
         verbose=False,
         seed=seed,
-        deterministic=True,
+        deterministic=DETERMINISTIC,
+        workers=WORKERS,
         amp=False,
         hsv_h=hsv_h,
         hsv_s=hsv_s,
@@ -147,7 +200,7 @@ def fine_tuning():
     print(f"[{RUN}] fine tuning ...")
     print()
 
-    model = YOLO(os.path.join(wandb_project, project_name + "_tl", "weights", "best.pt"))
+    model = YOLO(resolve_best_weights(project_name + "_tl"))
 
     model.train(
         data=data_path,
@@ -162,7 +215,8 @@ def fine_tuning():
         optimizer=optimizer,
         verbose=False,
         seed=seed,
-        deterministic=True,
+        deterministic=DETERMINISTIC,
+        workers=WORKERS,
         amp=False,
         hsv_h=hsv_h,
         hsv_s=hsv_s,
@@ -229,22 +283,10 @@ def complete_training(output_path, project_name, val, test):
         f.write(output.replace(".", ","))
 
     # move artifacts to results folder
-    shutil.move(
-        src=os.path.join(wandb_project, project_name + "_tl"),
-        dst=os.path.join(output_path, project_name, "tl"),
-    )
-    shutil.move(
-        src=os.path.join(wandb_project, project_name + "_ft"),
-        dst=os.path.join(output_path, project_name, "ft"),
-    )
-    shutil.move(
-        src=os.path.join(wandb_project, project_name + "_valid"),
-        dst=os.path.join(output_path, project_name, "valid"),
-    )
-    shutil.move(
-        src=os.path.join(wandb_project, project_name + "_test"),
-        dst=os.path.join(output_path, project_name, "test"),
-    )
+    move_run_artifacts(project_name + "_tl", os.path.join(output_path, project_name, "tl"))
+    move_run_artifacts(project_name + "_ft", os.path.join(output_path, project_name, "ft"))
+    move_run_artifacts(project_name + "_valid", os.path.join(output_path, project_name, "valid"))
+    move_run_artifacts(project_name + "_test", os.path.join(output_path, project_name, "test"))
     shutil.move(
         src=os.path.join(wandb_project, f"{project_name}_params.yaml"),
         dst=os.path.join(output_path, project_name, "params.yaml"),
@@ -271,6 +313,9 @@ def initialize_project(project_name):
                 "lr_tl": LR_TL,
                 "lr_ft": LR_FT,
                 "optimizer": optimizer,
+                "workers": WORKERS,
+                "deterministic": DETERMINISTIC,
+                "train_cache": train_cache,
                 "frozen_layers_tl": frozen_layers_tl,
                 "frozen_layers_ft": frozen_layers_ft,
                 "object_conf_thres": object_conf_thres,
@@ -293,7 +338,7 @@ def initialize_project(project_name):
 
 
 seed = 1337
-set_deterministic(seed=seed)
+set_deterministic(seed=seed, deterministic=DETERMINISTIC)
 
 # during kfold training, use the fold id as the project name
 project_name = args.fold_id
@@ -321,7 +366,7 @@ fine_tuning()
 ft_end = time.time()
 
 # evaluate model
-model = os.path.join(wandb_project, project_name + "_ft", "weights", "best.pt")
+model = resolve_best_weights(project_name + "_ft")
 val_metrics = evaluate_model(model, "valid")
 test_metrics = evaluate_model(model, "test")
 

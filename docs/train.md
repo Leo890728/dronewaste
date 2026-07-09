@@ -63,8 +63,10 @@ If you want a standalone notebook that can be uploaded to Google Drive and opene
 The default Colab run uses `yolov8n`, one site fold, 10 epochs, single GPU, and offline W&B logging so that it can start on a standard Colab runtime. Override the settings with environment variables:
 
 ```bash
-ARCH=yolov12 MODEL=yolov12n EPOCHS=50 BATCH_SIZE=16 SITE_INDICES=0,1 \
+ARCH=yolov12 MODEL=yolov12n EPOCHS=50 BATCH_SIZE=4 SITE_INDICES=0,1 \
   bash training/colab_train.sh
 ```
 
 For full cross-validation, set `SITE_INDICES=0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16`. Results are written to `/content/kfold_results` by default. Set `STORAGE=/content/drive/MyDrive` if you want dataset and results to persist in Google Drive.
+
+If Colab reports `CUDA error: an illegal memory access was encountered`, restart the runtime before retrying because the CUDA context is usually corrupted. The Colab defaults use `BATCH_SIZE=4`, `YOLO_WORKERS=2`, `YOLO_CACHE=False`, and `YOLO_DETERMINISTIC=0` to reduce GPU/runtime instability.
