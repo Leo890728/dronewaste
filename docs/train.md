@@ -58,6 +58,8 @@ cd /content/dronewaste
 bash training/colab_train.sh
 ```
 
+If you want a standalone notebook that can be uploaded to Google Drive and opened directly in Colab, use `dronewaste_colab_auto_train.ipynb`. Running all cells will clone this fork, install dependencies, download the dataset, and start training in order.
+
 The default Colab run uses `yolov8n`, one site fold, 10 epochs, single GPU, and offline W&B logging so that it can start on a standard Colab runtime. Override the settings with environment variables:
 
 ```bash
