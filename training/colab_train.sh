@@ -116,17 +116,21 @@ install_yolov12_deps() {
     install_common_deps
 
     local yolov12_dir="${YOLOV12_DIR:-/content/yolov12}"
+    local filtered_requirements
     if [ ! -d "$yolov12_dir/.git" ]; then
         git clone https://github.com/sunsmarterjie/yolov12 "$yolov12_dir"
     fi
 
-    python -m pip install -r "$yolov12_dir/requirements.txt"
+    filtered_requirements="$(mktemp)"
+    grep -Ev 'flash[-_]?attn|flash_attn|\.whl' "$yolov12_dir/requirements.txt" > "$filtered_requirements"
+    python -m pip install -r "$filtered_requirements"
+    rm -f "$filtered_requirements"
 
     if [ "${INSTALL_FLASH_ATTN:-0}" = "1" ]; then
         python -m pip install flash-attn --no-build-isolation
     fi
 
-    python -m pip install -e "$yolov12_dir"
+    python -m pip install -e "$yolov12_dir" --no-deps
 }
 
 install_faster_deps() {
