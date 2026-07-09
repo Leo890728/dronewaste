@@ -122,8 +122,9 @@ install_yolov12_deps() {
     fi
 
     filtered_requirements="$(mktemp)"
-    grep -Ev 'flash[-_]?attn|flash_attn|\.whl' "$yolov12_dir/requirements.txt" > "$filtered_requirements"
+    grep -Eiv 'flash[-_]?attn|flash_attn|\.whl|^onnxruntime([<=> ].*)?$' "$yolov12_dir/requirements.txt" > "$filtered_requirements"
     python -m pip install -r "$filtered_requirements"
+    python -m pip install "onnxruntime>=1.17.0"
     rm -f "$filtered_requirements"
 
     if [ "${INSTALL_FLASH_ATTN:-0}" = "1" ]; then
