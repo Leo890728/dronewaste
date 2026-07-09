@@ -160,7 +160,34 @@ install_yolov12_deps() {
     fi
 
     filtered_requirements="$(mktemp)"
-    grep -Eiv 'flash[-_]?attn|flash_attn|\.whl|^onnx([<=> ].*)?$|^onnxruntime([<=> ].*)?$' "$yolov12_dir/requirements.txt" > "$filtered_requirements"
+    python - "$yolov12_dir/requirements.txt" "$filtered_requirements" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+source = Path(sys.argv[1])
+target = Path(sys.argv[2])
+skip_names = {
+    "flash-attn",
+    "flash_attn",
+    "torch",
+    "torchvision",
+    "onnx",
+    "onnxruntime",
+    "onnxruntime-gpu",
+}
+kept = []
+
+for token in source.read_text().split():
+    name = re.split(r"[<>=!~]", token, maxsplit=1)[0].lower()
+    if token.endswith(".whl") or name in skip_names:
+        continue
+    kept.append(token)
+
+target.write_text("\n".join(kept) + ("\n" if kept else ""))
+print(f"Filtered YOLOv12 requirements: {', '.join(kept) if kept else '(none)'}")
+PY
+    python -m pip install torch==2.4.1 torchvision==0.19.1 --index-url https://download.pytorch.org/whl/cu121
     python -m pip install -r "$filtered_requirements"
     python -m pip install "onnx>=1.17.0" "onnxruntime>=1.17.0" thop
     rm -f "$filtered_requirements"
@@ -170,6 +197,7 @@ install_yolov12_deps() {
     fi
 
     patch_yolov12_loss_for_colab
+    export PYTHONPATH="$yolov12_dir:${PYTHONPATH:-}"
     python -m pip install -e "$yolov12_dir" --no-deps
 }
 

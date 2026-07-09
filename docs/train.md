@@ -71,4 +71,4 @@ For full cross-validation, set `SITE_INDICES=0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,
 
 If Colab reports `CUDA error: an illegal memory access was encountered`, restart the runtime before retrying because the CUDA context is usually corrupted. The Colab defaults use `BATCH_SIZE=4`, `YOLO_WORKERS=2`, `YOLO_CACHE=False`, and `YOLO_DETERMINISTIC=0` to reduce GPU/runtime instability.
 
-For YOLOv12, the Colab helper automatically patches the cloned `/content/yolov12` loss code so `fg_mask` is cast to a boolean tensor before indexing. This avoids `IndexError: tensors used as indices must be long, int, byte or bool tensors` on newer Colab/Torch environments.
+For YOLOv12, the Colab helper installs a Python 3.12-compatible Torch/Torchvision pair and filters the upstream YOLOv12 requirements token by token because the upstream file is space-separated. It also patches the cloned `/content/yolov12` loss code so `fg_mask` is cast to a boolean tensor before indexing. This avoids Colab/Torch compatibility errors such as `IndexError: tensors used as indices must be long, int, byte or bool tensors`.
