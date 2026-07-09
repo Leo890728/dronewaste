@@ -116,6 +116,40 @@ install_yolov8_deps() {
     python -m pip install ultralytics
 }
 
+patch_yolov12_loss_for_colab() {
+    local yolov12_dir="${YOLOV12_DIR:-/content/yolov12}"
+    local loss_file="$yolov12_dir/ultralytics/utils/loss.py"
+
+    if [ ! -f "$loss_file" ]; then
+        echo "WARNING: YOLOv12 loss file not found at $loss_file; skipping Colab loss patch."
+        return 0
+    fi
+
+    python - "$loss_file" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+lines = path.read_text().splitlines(keepends=True)
+patched = []
+changed = False
+target = "weight = target_scores.sum(-1)[fg_mask].unsqueeze(-1)"
+
+for line in lines:
+    if line.strip() == target and (not patched or patched[-1].strip() != "fg_mask = fg_mask.bool()"):
+        indent = line[: len(line) - len(line.lstrip())]
+        patched.append(f"{indent}fg_mask = fg_mask.bool()\n")
+        changed = True
+    patched.append(line)
+
+if changed:
+    path.write_text("".join(patched))
+    print(f"Patched YOLOv12 fg_mask dtype compatibility in {path}")
+else:
+    print(f"YOLOv12 fg_mask dtype compatibility patch already present in {path}")
+PY
+}
+
 install_yolov12_deps() {
     install_common_deps
 
@@ -135,6 +169,7 @@ install_yolov12_deps() {
         python -m pip install flash-attn --no-build-isolation
     fi
 
+    patch_yolov12_loss_for_colab
     python -m pip install -e "$yolov12_dir" --no-deps
 }
 
