@@ -41,6 +41,7 @@ Model training and evaluation on the DroneWaste dataset is performed using a k-f
 ### Training
 
 Follow the [training instructions](docs/train.md) to train a model on the DroneWaste dataset.
+For Google Colab, `training/colab_train.sh` can install dependencies, download the Zenodo dataset, and start a Colab-friendly training run automatically.
 
 ### Evaluation
 

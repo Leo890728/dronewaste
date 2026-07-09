@@ -10,7 +10,6 @@ from datetime import datetime
 import argparse
 import wandb
 
-
 # reference: network architecture
 # https://github.com/sunsmarterjie/yolov12
 
@@ -85,6 +84,20 @@ def set_deterministic(seed=1337):
     # Additional PyTorch deterministic settings
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+
+
+def initialize_wandb():
+    mode = os.environ.get("WANDB_MODE", "offline")
+    api_key = os.environ.get("WANDB_API_KEY")
+
+    if api_key and mode != "offline":
+        wandb.login(key=api_key)
+    elif mode != "offline":
+        print("WANDB_API_KEY is not set; using offline W&B logging.")
+        mode = "offline"
+        os.environ["WANDB_MODE"] = mode
+
+    wandb.init(mode=mode, project=wandb_project)
 
 
 def transfer_learning():
@@ -288,7 +301,7 @@ wandb_project = "uav_waste"
 data_path = DATASET
 
 # initialize wandb
-wandb.login(key='') # insert your wandb API key here
+initialize_wandb()
 
 # create project folder and save parameters
 initialize_project(project_name)

@@ -26,6 +26,7 @@ def parse_args():
     parser.add_argument('--batch_size', type=int, default=32, help='Batch size for training (default: 32)')
     parser.add_argument('--num_workers', type=int, default=4, help='Number of workers for data loading (default: 4)')
     parser.add_argument('--val_interval', type=int, default=1, help='Validation interval in epochs (default: 1)')
+    parser.add_argument('--epochs', type=int, default=300, help='Number of training epochs (default: 300)')
     parser.add_argument('--gpus', type=int, required=True, help='Number of GPUs to use for training')
     parser.add_argument('--download_model', action='store_true', help='Whether to download the model config file and weight. If False, model\'s config and weights should be in config dir (default: False)')
     parser.add_argument('--include_bkg', action='store_true', help='Whether to include background images in the dataset (default: False)')
@@ -354,7 +355,7 @@ flip = 0.5
 interpolation = 1
 
 # training parameters
-epochs = 300
+epochs = args.epochs
 lr = 0.001
 model = args.model
 batch_size = args.batch_size

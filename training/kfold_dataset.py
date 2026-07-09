@@ -66,9 +66,14 @@ class SitesDatasetSplit:
         copy_images=False,
         no_empty=False,
     ):
-        path_parts = dataset_path.split('/')
-        self.in_base_path = '/'.join(path_parts[:-2])
-        self.version = path_parts[-2]
+        dataset_path = os.path.abspath(dataset_path)
+        dataset_dir = os.path.dirname(dataset_path)
+        legacy_base_path = os.path.dirname(dataset_dir)
+        if os.path.isdir(os.path.join(dataset_dir, 'images')):
+            self.in_base_path = dataset_dir
+        else:
+            self.in_base_path = legacy_base_path
+        self.version = os.path.basename(dataset_dir)
         self.in_dataset_path = dataset_path
         self.out_base_path = output_path
 

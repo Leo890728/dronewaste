@@ -1,10 +1,16 @@
 import json
 import sys
 import argparse
+import os
 import subprocess
 from itertools import chain
 
 from kfold_dataset import SitesDatasetSplit
+
+
+def env_int(name, default):
+    return int(os.environ.get(name, default))
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--arch', type=str, required=True)
@@ -14,12 +20,18 @@ parser.add_argument('--dataset_path', type=str, required=True)
 parser.add_argument('--tmp_dataset_path', type=str, required=True)
 parser.add_argument('--results_path', type=str, required=True)
 parser.add_argument('--no_empty', action='store_true', default=False)
+parser.add_argument('--model', type=str, default=None)
+parser.add_argument('--img_size', type=int, default=env_int('IMG_SIZE', 640))
+parser.add_argument('--epochs', type=int, default=env_int('EPOCHS', 300))
+parser.add_argument('--patience', type=int, default=env_int('PATIENCE', 50))
+parser.add_argument('--yolo_batch_size', type=int, default=env_int('YOLO_BATCH_SIZE', 256))
+parser.add_argument('--yolo_device', type=str, default=os.environ.get('YOLO_DEVICE', '0,1'))
+parser.add_argument('--faster_batch_size', type=int, default=env_int('FASTER_BATCH_SIZE', 64))
+parser.add_argument('--faster_gpus', type=int, default=env_int('FASTER_GPUS', 2))
 args = parser.parse_args()
 
 
 # fixed parameters
-YOLO_GPUS = '0,1'  # GPU ids
-FASTER_GPUS = '2'  # number of GPUs
 VALID_SPLIT = 0.1
 
 
@@ -53,13 +65,17 @@ print()
 
 
 def train_and_inference_yolov8():
+    model = args.model or 'yolov8x'
     arguments = [
         ('python', 'training_yolov8.py'),
-        ('--model', 'yolov8x'),
+        ('--model', model),
         ('--dataset_yaml', dataset.dataset_file),
         ('--results_path', args.results_path),
-        ('--batch_size', '256'),
-        ('--device', YOLO_GPUS),
+        ('--img_size', str(args.img_size)),
+        ('--batch_size', str(args.yolo_batch_size)),
+        ('--epochs', str(args.epochs)),
+        ('--patience', str(args.patience)),
+        ('--device', args.yolo_device),
         ('--fold_id', args.run_id),
     ]
     # flatten list of tuples
@@ -71,13 +87,17 @@ def train_and_inference_yolov8():
 
 
 def train_and_inference_yolov12():
+    model = args.model or 'yolov12x'
     arguments = [
         ('python', 'training_yolov12.py'),
-        ('--model', 'yolov12x'),
+        ('--model', model),
         ('--dataset_yaml', dataset.dataset_file),
         ('--results_path', args.results_path),
-        ('--batch_size', '256'),
-        ('--device', YOLO_GPUS),
+        ('--img_size', str(args.img_size)),
+        ('--batch_size', str(args.yolo_batch_size)),
+        ('--epochs', str(args.epochs)),
+        ('--patience', str(args.patience)),
+        ('--device', args.yolo_device),
         ('--fold_id', args.run_id),
     ]
     # flatten list of tuples
@@ -89,14 +109,16 @@ def train_and_inference_yolov12():
 
 
 def train_and_evaluate_faster_rcnn():
+    model = args.model or 'faster-rcnn_r50_fpn_mstrain_3x_coco'
     arguments = [
         ('python', 'training_fasterRCNN.py'),
-        ('--model', 'faster-rcnn_r50_fpn_mstrain_3x_coco'),
+        ('--model', model),
         ('--dataset_path', dataset.export_path),
         ('--results_dir', args.results_path),
         ('--config_directory', 'configs'),
-        ('--batch_size', '64'),
-        ('--gpus', FASTER_GPUS),
+        ('--batch_size', str(args.faster_batch_size)),
+        ('--epochs', str(args.epochs)),
+        ('--gpus', str(args.faster_gpus)),
         ('--fold_id', args.run_id),
         ('--include_bkg'),
     ]

@@ -48,3 +48,21 @@ Model training on the DroneWaste dataset is performed using a k-fold cross-valid
 The training script iterates over all sites. At each iteration, a temporary dataset is generated where the current site is used as the test set while the remaining sites are used as the training set.
 
 The results from each fold training are saved in separate folders inside the `$STORAGE/kfold_results/$run_id` folder.
+
+## Google Colab
+
+Use the Colab helper script to install dependencies, download the DroneWaste dataset from Zenodo, and start training automatically:
+
+```bash
+cd /content/dronewaste
+bash training/colab_train.sh
+```
+
+The default Colab run uses `yolov8n`, one site fold, 10 epochs, single GPU, and offline W&B logging so that it can start on a standard Colab runtime. Override the settings with environment variables:
+
+```bash
+ARCH=yolov12 MODEL=yolov12n EPOCHS=50 BATCH_SIZE=16 SITE_INDICES=0,1 \
+  bash training/colab_train.sh
+```
+
+For full cross-validation, set `SITE_INDICES=0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16`. Results are written to `/content/kfold_results` by default. Set `STORAGE=/content/drive/MyDrive` if you want dataset and results to persist in Google Drive.
